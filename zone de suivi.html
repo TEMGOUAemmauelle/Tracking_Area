@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation de Tracking Area (LTE/5G)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #e2e8f0; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #app-container {
+            display: flex;
+            flex-direction: column; /* Main container is always column */
+            gap: 24px; /* Increased gap */
+            background-color: #ffffff;
+            border-radius: 16px; /* More rounded corners */
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15); /* Stronger, softer shadow */
+            padding: 32px; /* Increased padding */
+            width: 100%;
+            max-width: 1500px; /* Slightly wider max-width */
+            border: 1px solid #cbd5e1; /* Subtle border */
+        }
+        #top-section {
+            display: flex;
+            flex-direction: column; /* Default to column for small screens */
+            gap: 24px;
+        }
+        @media (min-width: 768px) {
+            #top-section {
+                flex-direction: row; /* Row for medium and larger screens */
+            }
+        }
+        canvas {
+            border: 2px solid #a7b7c9; /* Slightly darker border for canvas */
+            background-color: #f8fafc; /* Very light blue background for canvas */
+            border-radius: 10px; /* Rounded corners for canvas */
+            width: 120%;
+            height: auto;
+            display: block;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08); /* Subtle shadow for canvas */
+        }
+        .controls-panel, .logs-panel {
+            background-color: #f1f5f9; /* Lighter background for panels */
+            border-radius: 10px; /* Rounded corners */
+            width: 80%;
+            margin-left: 150px;
+            padding: 20px; /* Increased padding */
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05); /* Softer inner shadow */
+            border: 1px solid #e2e8f0; /* Subtle panel border */
+        }
+        .logs-panel {
+            background-color: #f1f5f9; /* Lighter background for panels */
+            border-radius: 10px; /* Rounded corners */
+             width: 100%;
+            margin-left: 0px;
+            padding: 20px; /* Increased padding */
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05); /* Softer inner shadow */
+            border: 1px solid #e2e8f0; /* Subtle panel border */
+        }
+        .control-group {
+            margin-bottom: 16px; /* Increased margin */
+        }
+        .control-group label {
+            font-weight: 600;
+            color: #334155; /* Slate 800 */
+            display: block;
+            margin-bottom: 6px; /* Increased margin */
+            font-size: 0.95rem; /* Slightly larger font */
+        }
+        .control-group input[type="number"],
+        .control-group input[type="range"],
+        .control-group select,
+        .control-group textarea {
+            width: 100%;
+            padding: 10px 14px; /* Increased padding */
+            border: 1px solid #94a3b8; /* Slate 400 border */
+            border-radius: 8px; /* More rounded corners */
+            font-size: 1rem;
+            color: #1e293b; /* Slate 900 */
+            background-color: #ffffff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .control-group input[type="number"]:focus,
+        .control-group input[type="range"]:focus,
+        .control-group select:focus,
+        .control-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6; /* Blue 500 on focus */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Blue ring on focus */
+        }
+        .control-group button {
+            padding: 12px 20px; /* Increased padding */
+            border-radius: 10px; /* More rounded corners */
+            font-weight: 700; /* Bolder font */
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Stronger button shadow */
+            letter-spacing: 0.025em; /* Slight letter spacing */
+        }
+        .control-group button:hover {
+            transform: translateY(-2px); /* More pronounced lift */
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+        .control-group button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        #startStopBtn {
+            background-color: #10b981; /* Emerald 500 */
+            color: white;
+        }
+        #startStopBtn:hover {
+            background-color: #059669; /* Emerald 600 */
+        }
+        #resetBtn {
+            background-color: #ef4444; /* Red 500 */
+            color: white;
+        }
+        #resetBtn:hover {
+            background-color: #dc2626; /* Red 600 */
+        }
+        #assignTaListBtn {
+            background-color: #3b82f6; /* Blue 500 */
+            color: white;
+        }
+        #assignTaListBtn:hover {
+            background-color: #2563eb; /* Blue 600 */
+        }
+
+        #log-output {
+            height: 180px; /* Taller log output */
+            overflow-y: auto;
+            background-color: #eef2f6; /* Lighter background for logs */
+            border-radius: 8px;
+            padding: 14px; /* Increased padding */
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; /* Monospace font */
+            font-size: 0.875rem; /* Slightly smaller font for logs */
+            color: #334155; /* Slate 800 */
+            border: 1px solid #d1d5db; /* Subtle border */
+        }
+        .log-entry {
+            margin-bottom: 6px; /* Increased margin */
+            line-height: 1.5;
+        }
+        .log-entry.tau {
+            color: #dc2626; /* Darker red for TAU events */
+            font-weight: bold;
+        }
+        .log-entry.handover {
+            color: #0d9488; /* Darker teal for Handover events */
+            font-weight: bold;
+        }
+        .log-entry.talist-change {
+            color: #16a34a; /* Darker green for TA List change events */
+            font-weight: bold;
+        }
+
+        /* Responsive adjustments */
+        @media (min-width: 768px) {
+            .main-content {
+                flex: 9; /* Canvas takes much larger space (90%) */
+            }
+            .sidebar {
+                flex: 1; /* Controls panel takes much smaller space (10%) */
+                min-width: 200px; /* Ensure it doesn't get too small for controls */
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div id="app-container" class="flex flex-col gap-6 p-6 bg-white rounded-xl shadow-lg max-w-6xl w-full">
+        <div id="top-section" class="flex flex-col md:flex-row gap-6">
+            <div class="main-content flex-grow flex flex-col gap-6">
+                <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">Simulation de Tracking Area (LTE/5G)</h1>
+                <canvas id="simulationCanvas" width="800" height="600" class="rounded-lg shadow-md"></canvas>
+            </div>
+
+            <div class="sidebar flex flex-col gap-6 w-full md:w-1/3 min-w-[300px]">
+                <div class="controls-panel p-5 bg-blue-50 rounded-lg shadow-inner">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">Contrôles de la Simulation</h2>
+
+                    <div class="control-group mb-4">
+                        <label for="scenarioSelect" class="block text-sm font-medium text-gray-700">Sélectionner un scénario :</label>
+                        <select id="scenarioSelect" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                            <option value="custom">Personnalisé</option>
+                            <option value="urban">Zone urbaine dense</option>
+                            <option value="rural">Zone rurale étendue</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group mb-4">
+                        <label for="numCellsX" class="block text-sm font-medium text-gray-700">Cellules en X :</label>
+                        <input type="number" id="numCellsX" value="4" min="2" max="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                    </div>
+                    <div class="control-group mb-4">
+                        <label for="numCellsY" class="block text-sm font-medium text-gray-700">Cellules en Y :</label>
+                        <input type="number" id="numCellsY" value="3" min="2" max="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                    </div>
+                    <div class="control-group mb-4">
+                        <label for="numTAs" class="block text-sm font-medium text-gray-700">Nombre de TAs :</label>
+                        <input type="number" id="numTAs" value="3" min="1" max="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                    </div>
+                    <div class="control-group mb-4">
+                        <label for="ueSpeed" class="block text-sm font-medium text-gray-700">Vitesse de l'UE : <span id="ueSpeedValue" class="font-normal text-gray-600">5</span></label>
+                        <input type="range" id="ueSpeed" value="5" min="1" max="20" class="mt-1 block w-full">
+                    </div>
+
+                    <div class="control-group mb-4 p-3 bg-blue-100 rounded-md border border-blue-200">
+                        <h3 class="text-md font-semibold text-blue-700 mb-2">Configuration TA List</h3>
+                        <label for="taListInput" class="block text-sm font-medium text-gray-700">IDs de Cellules (CIDs) pour la TA List de l'UE (ex: 0,1,2,8) :</label>
+                        <input type="text" id="taListInput" value="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 text-sm">
+                        <button id="assignTaListBtn" class="mt-3 w-full py-2 px-4 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 transition duration-200 shadow-md">Appliquer TA List à l'UE</button>
+                    </div>
+
+                    <div class="flex gap-4 mt-4">
+                        <button id="startStopBtn" class="flex-1 py-2 px-4 rounded-md bg-green-600 text-white font-semibold hover:bg-green-700 transition duration-200 shadow-md">Démarrer</button>
+                        <button id="resetBtn" class="flex-1 py-2 px-4 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition duration-200 shadow-md">Réinitialiser</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="logs-panel p-5 bg-gray-50 rounded-lg shadow-inner w-full">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Journal des Événements</h2>
+            <div id="log-output" class="h-40 overflow-y-auto bg-gray-200 p-3 rounded-md text-sm text-gray-800 border border-gray-300">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // Get the canvas and its context
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI elements
+        const scenarioSelect = document.getElementById('scenarioSelect');
+        const numCellsXInput = document.getElementById('numCellsX');
+        const numCellsYInput = document.getElementById('numCellsY');
+        const numTAsInput = document.getElementById('numTAs');
+        const ueSpeedInput = document.getElementById('ueSpeed');
+        const ueSpeedValueSpan = document.getElementById('ueSpeedValue');
+        const taListInput = document.getElementById('taListInput'); // New TA List input
+        const assignTaListBtn = document.getElementById('assignTaListBtn'); // New Assign TA List button
+        const startStopBtn = document.getElementById('startStopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const logOutput = document.getElementById('log-output');
+
+        // Simulation variables
+        let cells = [];
+        let ue = null;
+        let animationFrameId = null;
+        let isRunning = false;
+        let activeSignals = []; // Array to hold active signaling animations
+
+        // Colors for TAs (more colors for more TAs if needed)
+        const taColors = [
+            '#a7f3d0', // Green 200
+            '#bfdbfe', // Blue 200
+            '#fecaca', // Red 200
+            '#fed7aa', // Orange 200
+            '#d8b4fe', // Purple 200
+            '#a5f3fc', // Cyan 200
+            '#fcd34d', // Yellow 200
+            '#fbcfe8', // Pink 200
+            '#c7d2fe', // Indigo 200
+            '#d1d5db'  // Gray 300
+        ];
+
+        // Scenario configurations
+        const scenarios = {
+            'custom': {
+                numCellsX: 4, numCellsY: 3, numTAs: 3, defaultCellList: [0, 1, 4, 5], ueSpeed: 5
+            },
+            'urban': {
+                numCellsX: 8, numCellsY: 8, numTAs: 10, defaultCellList: [0, 1, 2, 8, 9, 10, 16, 17, 18], ueSpeed: 12
+            },
+            'rural': {
+                numCellsX: 3, numCellsY: 2, numTAs: 2, defaultCellList: [0, 1, 2, 3, 4, 5], ueSpeed: 3
+            }
+        };
+
+        // Class to represent a cell
+        class Cell {
+            constructor(id, x, y, width, height, taId) {
+                this.id = id;
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.taId = taId;
+            }
+
+            // Draw the cell on the canvas
+            draw(ctx, isCurrentCell = false) {
+                // TA background color
+                ctx.fillStyle = taColors[this.taId % taColors.length];
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                // Cell border
+                ctx.strokeStyle = '#64748b'; // Slate 600
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+                // Highlight if it's the current cell
+                if (isCurrentCell) {
+                    ctx.strokeStyle = '#1d4ed8'; // Blue 700 for highlight
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                }
+
+                // Display cell ID and TA ID
+                ctx.fillStyle = '#1e293b'; // Slate 900
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`C${this.id}`, this.x + this.width / 2, this.y + this.height / 2 - 8);
+                ctx.fillText(`TA${this.taId}`, this.x + this.width / 2, this.y + this.height / 2 + 8);
+            }
+
+            // Check if a point is inside the cell
+            contains(px, py) {
+                return px >= this.x && px < this.x + this.width &&
+                       py >= this.y && py < this.y + this.height;
+            }
+        }
+
+        // Class to represent an active signaling event
+        class Signal {
+            constructor(x, y, type, duration = 1000) { // duration in ms
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'handover', 'tau', or 'talist-change'
+                this.startTime = Date.now();
+                this.duration = duration;
+                this.maxRadius = 50; // Max size of the pulse
+                this.color = '';
+                this.message = '';
+
+                if (type === 'tau') {
+                    this.color = '#ef4444'; // Red for TAU
+                    this.message = 'TAU';
+                } else if (type === 'handover') {
+                    this.color = '#0f766e'; // Teal for Handover
+                    this.message = 'Handover';
+                } else if (type === 'talist-change') {
+                    this.color = '#22c55e'; // Green for TA List change
+                    this.message = 'Changement TA List';
+                }
+            }
+
+            update() {
+                const elapsed = Date.now() - this.startTime;
+                this.progress = elapsed / this.duration;
+                if (this.progress >= 1) {
+                    return false; // Signal has expired
+                }
+                this.currentRadius = this.maxRadius * this.progress;
+                this.alpha = 1 - this.progress; // Fade out
+                return true; // Signal is still active
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+
+                // Draw the expanding circle
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.currentRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Draw the message
+                ctx.fillStyle = this.color;
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(this.message, this.x, this.y - this.currentRadius - 5);
+
+                ctx.restore();
+            }
+        }
+
+        // Class to represent the UE (User Equipment)
+        class UE {
+            constructor(x, y, radius, speed, initialTaList) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.speed = speed;
+                this.currentCellId = null;
+                this.currentTaId = null;
+                this.currentTaList = initialTaList || []; // UE's assigned TA List
+                this.directionX = (Math.random() - 0.5) * 2; // -1 to 1
+                this.directionY = (Math.random() - 0.5) * 2; // -1 to 1
+                this.normalizeDirection(); // Ensure consistent speed
+            }
+
+            // Normalize direction for consistent speed
+            normalizeDirection() {
+                const magnitude = Math.sqrt(this.directionX * this.directionX + this.directionY * this.directionY);
+                if (magnitude > 0) {
+                    this.directionX /= magnitude;
+                    this.directionY /= magnitude;
+                }
+            }
+
+            // Update UE position
+            update(cells) {
+                // Random movement
+                this.x += this.directionX * this.speed;
+                this.y += this.directionY * this.speed;
+
+                // Bounce off canvas edges
+                if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
+                    this.directionX *= -1;
+                    this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x)); // Clamp position
+                }
+                if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
+                    this.directionY *= -1;
+                    this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y)); // Clamp position
+                }
+
+                // Find the UE's current cell
+                let newCell = cells.find(cell => cell.contains(this.x, this.y));
+
+                if (newCell) {
+                    // Only process if the cell has actually changed
+                    if (this.currentCellId !== null && newCell.id !== this.currentCellId) {
+                        // Check if UE changed TA
+                        if (newCell.taId !== this.currentTaId) {
+                            // TA has changed. Now check if new TA is in the UE's assigned TA List
+                            if (this.currentTaList.includes(newCell.taId)) {
+                                logEvent(`[TA List] UE est entré dans TA${newCell.taId} (depuis TA${this.currentTaId}) - dans la liste de TAs assignée. Pas de TAU requis.`, 'talist-change');
+                                activeSignals.push(new Signal(newCell.x + newCell.width / 2, newCell.y + newCell.height / 2, 'talist-change'));
+                            } else {
+                                // New TA is NOT in the assigned TA List -> TAU required
+                                logEvent(`[TAU] UE est passé de TA${this.currentTaId} à TA${newCell.taId} (Cellule C${newCell.id}) - HORS de la liste de TAs assignée. TAU déclenché !`, 'tau');
+                                activeSignals.push(new Signal(newCell.x + newCell.width / 2, newCell.y + newCell.height / 2, 'tau'));
+                            }
+                        } else {
+                            // Cell changed, but TA remained the same (Handover)
+                            logEvent(`[Handover] UE est passé de C${this.currentCellId} à C${newCell.id} (dans TA${newCell.taId})`, 'handover');
+                            activeSignals.push(new Signal(newCell.x + newCell.width / 2, newCell.y + newCell.height / 2, 'handover'));
+                        }
+                    }
+                    // Always update UE's current cell and TA ID
+                    this.currentCellId = newCell.id;
+                    this.currentTaId = newCell.taId;
+                } else {
+                    // If UE is not in any cell (should be rare if canvas is fully covered)
+                    this.currentCellId = null;
+                    this.currentTaId = null;
+                }
+            }
+
+            // Draw the UE on the canvas
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#0f766e'; // Teal 700
+                ctx.fill();
+                ctx.strokeStyle = '#134e4a'; // Teal 900
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Display UE ID and current TA
+                ctx.fillStyle = 'white';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('UE', this.x, this.y - 5);
+                if (this.currentTaId !== null) {
+                    ctx.fillText(`TA${this.currentTaId}`, this.x, this.y + 7);
+                }
+            }
+        }
+
+        // Function to initialize the simulation
+        function initSimulation() {
+            const numCellsX = parseInt(numCellsXInput.value);
+            const numCellsY = parseInt(numCellsYInput.value);
+            const numTAs = parseInt(numTAsInput.value);
+            const ueSpeed = parseInt(ueSpeedInput.value);
+
+            cells = [];
+            const cellWidth = canvas.width / numCellsX;
+            const cellHeight = canvas.height / numCellsY;
+            let cellIdCounter = 0;
+
+            // Create cells and assign TAs contiguously (horizontal stripes)
+            // This ensures TAs are "side-by-side" in zones
+            for (let y = 0; y < numCellsY; y++) {
+                // Calculate TA ID based on row, distributing TAs evenly across rows
+                const taId = Math.min(Math.floor(y / (numCellsY / numTAs)), numTAs - 1);
+                for (let x = 0; x < numCellsX; x++) {
+                    cells.push(new Cell(cellIdCounter, x * cellWidth, y * cellHeight, cellWidth, cellHeight, taId));
+                    cellIdCounter++;
+                }
+            }
+
+            // Get the TA list from input (which is now CIDs) or current scenario default
+            let initialTaList;
+            if (scenarioSelect.value === 'custom') {
+                initialTaList = parseTaListInput(); // Parse CIDs to TAs
+            } else {
+                // For scenarios, use defaultCellList to derive initialTaList
+                const defaultCellIds = scenarios[scenarioSelect.value].defaultCellList;
+                initialTaList = deriveTaListFromCellIds(defaultCellIds);
+            }
+            // Update TA list input field with the CIDs that generated the TA List
+            taListInput.value = (scenarioSelect.value === 'custom' ? taListInput.value : scenarios[scenarioSelect.value].defaultCellList.join(','));
+
+
+            // Initialize UE in the center of a middle-ish cell
+            const initialCell = cells[Math.floor(cells.length / 2)];
+            ue = new UE(initialCell.x + initialCell.width / 2, initialCell.y + initialCell.height / 2, 10, ueSpeed, initialTaList);
+            ue.currentCellId = initialCell.id;
+            ue.currentTaId = initialCell.taId; // UE's current TA starts as the TA of its initial cell
+
+            activeSignals = []; // Clear active signals on reset
+            logOutput.innerHTML = ''; // Clear previous logs
+            logEvent('Simulation initialisée.');
+            logEvent(`Configuration: ${numCellsX}x${numCellsY} cellules, ${numTAs} TAs.`);
+            logEvent(`Liste de TAs assignée à l'UE (dérivée des CIDs) : [${ue.currentTaList.join(', ')}]`);
+        }
+
+        // Function to draw everything on the canvas
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+            // Draw all cells
+            cells.forEach(cell => {
+                const isCurrentCell = ue && cell.id === ue.currentCellId;
+                cell.draw(ctx, isCurrentCell);
+            });
+
+            // Draw active signals
+            activeSignals.forEach(signal => signal.draw(ctx));
+
+            // Draw UE
+            if (ue) {
+                ue.draw(ctx);
+            }
+        }
+
+        // Main simulation loop
+        function gameLoop() {
+            if (isRunning) {
+                if (ue) {
+                    ue.speed = parseInt(ueSpeedInput.value); // Update UE speed
+                    ue.update(cells);
+                }
+
+                // Update and filter active signals
+                activeSignals = activeSignals.filter(signal => signal.update());
+
+                draw();
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Function to start the simulation
+        function startSimulation() {
+            if (!isRunning) {
+                isRunning = true;
+                startStopBtn.textContent = 'Arrêter';
+                startStopBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                startStopBtn.classList.add('bg-orange-600', 'hover:bg-orange-700');
+                logEvent('Simulation démarrée.');
+                gameLoop();
+            }
+        }
+
+        // Function to stop the simulation
+        function stopSimulation() {
+            if (isRunning) {
+                isRunning = false;
+                cancelAnimationFrame(animationFrameId);
+                startStopBtn.textContent = 'Démarrer';
+                startStopBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+                startStopBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                logEvent('Simulation arrêtée.');
+            }
+        }
+
+        // Function to reset the simulation
+        function resetSimulation() {
+            stopSimulation();
+            initSimulation();
+            draw(); // Draw initial state after reset
+            logEvent('Simulation réinitialisée.');
+        }
+
+        // Function to add a message to the log
+        function logEvent(message, type = '') {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.classList.add('log-entry');
+            if (type) {
+                logEntry.classList.add(type);
+            }
+            logEntry.textContent = `[${time}] ${message}`;
+            logOutput.prepend(logEntry); // Add to the beginning to see the most recent
+            // Limit the number of logs to avoid overload
+            if (logOutput.children.length > 50) {
+                logOutput.removeChild(logOutput.lastChild);
+            }
+        }
+
+        // Helper function to derive TA List from a list of Cell IDs
+        function deriveTaListFromCellIds(cellIds) {
+            const uniqueTaIds = new Set();
+            cellIds.forEach(cellId => {
+                const cell = cells.find(c => c.id === cellId);
+                if (cell) {
+                    uniqueTaIds.add(cell.taId);
+                }
+            });
+            return [...uniqueTaIds].sort((a, b) => a - b); // Return sorted unique TA IDs
+        }
+
+        // Helper function to parse Cell IDs from input and then derive TA List
+        function parseTaListInput() {
+            const taListString = taListInput.value;
+            const cellIds = taListString.split(',')
+                                    .map(s => parseInt(s.trim()))
+                                    .filter(n => !isNaN(n) && n >= 0 && n < cells.length); // Validate CIDs
+
+            return deriveTaListFromCellIds(cellIds);
+        }
+
+        // Function to apply a predefined scenario
+        function applyScenario(scenarioType) {
+            const config = scenarios[scenarioType];
+            if (config) {
+                numCellsXInput.value = config.numCellsX;
+                numCellsYInput.value = config.numCellsY;
+                numTAsInput.value = config.numTAs;
+                ueSpeedInput.value = config.ueSpeed;
+                ueSpeedValueSpan.textContent = config.ueSpeed; // Update displayed speed value
+                taListInput.value = config.defaultCellList.join(','); // Set default Cell List for scenario
+                resetSimulation();
+                logEvent(`Scénario "${scenarioType}" appliqué.`);
+            }
+        }
+
+        // Event handlers
+        startStopBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stopSimulation();
+            } else {
+                startSimulation();
+            }
+        });
+
+        resetBtn.addEventListener('click', resetSimulation);
+
+        assignTaListBtn.addEventListener('click', () => {
+            if (ue) {
+                const newTaList = parseTaListInput(); // This now parses CIDs and derives TAs
+                ue.currentTaList = newTaList;
+                logEvent(`Liste de TAs de l'UE mise à jour vers : [${newTaList.join(', ')}]`);
+                // No need for full reset if running, just update the UE object
+                // If not running, redraw to ensure current state reflects the new list
+                if (!isRunning) {
+                   draw();
+                }
+            } else {
+                logEvent("Impossible d'assigner la liste de TAs : UE non initialisé. Veuillez d'abord réinitialiser la simulation.", "error");
+            }
+        });
+
+
+        // Update displayed UE speed value
+        ueSpeedInput.addEventListener('input', () => {
+            ueSpeedValueSpan.textContent = ueSpeedInput.value;
+            // If scenario is "Custom", don't reset here
+            if (scenarioSelect.value === 'custom') {
+                // Update UE speed in real-time without resetting the entire simulation
+                if (ue) ue.speed = parseInt(ueSpeedInput.value);
+            } else {
+                // If a predefined scenario is selected, switch to "Custom"
+                scenarioSelect.value = 'custom';
+                resetSimulation(); // Reset to apply new parameters
+            }
+        });
+
+        // Reset simulation if grid or TA parameters change
+        numCellsXInput.addEventListener('change', () => {
+            if (scenarioSelect.value !== 'custom') {
+                scenarioSelect.value = 'custom';
+            }
+            resetSimulation();
+        });
+        numCellsYInput.addEventListener('change', () => {
+            if (scenarioSelect.value !== 'custom') {
+                scenarioSelect.value = 'custom';
+            }
+            resetSimulation();
+        });
+        numTAsInput.addEventListener('change', () => {
+            if (scenarioSelect.value !== 'custom') {
+                scenarioSelect.value = 'custom';
+            }
+            // When numTAs changes, the cell-to-TA mapping changes.
+            // We need to re-derive the TA list from the *current* CIDs in the input
+            // to ensure the TA List reflects the new TA configurations.
+            resetSimulation(); // This will call initSimulation, which re-derives TA list
+        });
+
+        // Handle scenario change
+        scenarioSelect.addEventListener('change', (event) => {
+            applyScenario(event.target.value);
+        });
+
+        // Initial setup on page load
+        window.onload = function() {
+            // Adjust canvas size to be responsive
+            function resizeCanvas() {
+                const containerWidth = canvas.parentElement.clientWidth;
+                canvas.width = containerWidth;
+                canvas.height = containerWidth * (3 / 4); // Maintain 4:3 aspect ratio
+                // Apply the selected scenario to re-initialize everything with correct sizes
+                applyScenario(scenarioSelect.value);
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas(); // Initial call to set size and init simulation
+        };
+    </script>
+</body>
+</html>
