@@ -9,7 +9,9 @@
 ### 🔷 Modélisation des Cellules et des TAs
 - Visualisation d'une **grille de cellules** (eNodeB/gNodeB) regroupées en **Tracking Areas**.
 - Chaque TA est colorée distinctement et organisée en **bandes horizontales** contiguës.
-
+<p>
+<img src="public/demo.png" alt="Simulation LTE/5G" width="600"/>
+</p>
 
 ### 📱 Simulation d'Équipement Utilisateur (UE)
 - Un UE se déplace de façon aléatoire, **simulant la mobilité d’un abonné**.
